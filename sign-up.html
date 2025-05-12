@@ -84,7 +84,7 @@
                             <!-- Nav Start -->
                             <div class="classynav">
                                 <ul>
-                                    <li><a href="signin.html">Sign in</a></li>
+                                    <li><a href="login.html">Log in</a></li>
                                     <li><a href="index.html">Back</a></li>
                                 </ul>
                             </div>
@@ -141,20 +141,18 @@
                     <div class="col-12 col-md-10 col-lg-9">
                         <div class="contact-form">
                             <h5>SIGN UP</h5>
-                            <!-- Contact Form -->
-                            <form action="#" method="post">
                                 <div class="row">
                                     <div class="col-12 col-md-6">
                                         <div class="group">
-                                            <input type="text" name="name" id="name" placeholder="Fullname" required>
+                                            <input type="text" name="name" id="name" required>
                                             <span class="highlight"></span>
                                             <span class="bar"></span>
-                                            <label>Name</label>
+                                            <label>Full Name</label>
                                         </div>
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <div class="group">
-                                            <input type="email" name="email" id="email" placeholder="email@yahoo.com" required>
+                                            <input type="email" name="email" id="email" required>
                                             <span class="highlight"></span>
                                             <span class="bar"></span>
                                             <label>Email</label>
@@ -162,7 +160,7 @@
                                     </div>
                                     <div class="col-12">
                                         <div class="group">
-                                            <input type="tel" name="phoneNum" id="phoneNum" placeholder="012345678" pattern="[0-9]{9}" required>
+                                            <input type="tel" name="phoneNum" id="phoneNum" pattern="^(\+?6?01)[02-46-9]-*[0-9]{7}$|^(\+?6?01)[1]-*[0-9]{8}$" required>
                                             <span class="highlight"></span>
                                             <span class="bar"></span>
                                             <label>Phone Number</label>
@@ -170,7 +168,7 @@
                                     </div>
                                    <div class="col-12">
                                         <div class="group">
-                                            <input type="text" name="username" id="username" placeholder="Username" required>
+                                            <input type="text" name="username" id="username" required>
                                             <span class="highlight"></span>
                                             <span class="bar"></span>
                                             <label>Username</label>
@@ -198,13 +196,12 @@
                                     </div>
                                     <script src="sign-up.js"></script>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                     </div>
-
                 </div>
             </div>
-        </div>
+        </form>
     </div>
     <!-- ##### Contact Area End ##### -->
 

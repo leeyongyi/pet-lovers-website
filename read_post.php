@@ -1,3 +1,6 @@
+<?php
+include 'config.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -83,9 +86,9 @@
                             <div class="classynav">
                                 <ul>
                                     <li><a href="read_post.php">Home</a></li>
-                                    <li><a href="profile.html">Profile</a></li>
+                                    <li><a href="profile.php?username=<?php echo urlencode($username); ?>">Profile</a></li>
                                     <li><a href="create_post.php">Add Post</a></li>
-                                    <li><a href="Pet-Age-Calculater.html">Pet Age Calculater</a></li>
+                                    <li><a href="calculator.php">Pet Age Calculator</a></li>
                                     <li><a href="index.html">Sign Out</a></li>
                                 </ul>
                             </div>
@@ -201,10 +204,12 @@
                                             <h4><a href="single_post.php?id=<?php echo $post['id']; ?>" class="post-headline"><?php echo $post['title']; ?></a></h4>
                                             <p><?php echo substr($post['content'], 0, 200); ?><?php if (strlen($post['content']) > 200) echo '...'; ?></p>
                                             <div class="post-meta">
-                                                <p>By <a href="#"><?php echo $post['author']; ?></a></p>
+                                                <p>By <a href="profile.php?username=<?php echo urlencode($post['author']); ?>"><?php echo htmlspecialchars($post['author']); ?></a></p>
                                             </div>
-                                            <a href='update_post.php?id=<?php echo $post['id']; ?>'>Edit</a> |
-                                            <a href='delete_post.php?id=<?php echo $post['id']; ?>' onclick="return confirm('Are you sure you want to delete this post?');">Delete</a>
+                                            <?php if ($username === $post['author']): ?>
+                                                <a href='update_post.php?id=<?php echo $post['id']; ?>'>Edit</a> |
+                                                <a href='delete_post.php?id=<?php echo $post['id']; ?>' onclick="return confirm('Are you sure?');">Delete</a>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>

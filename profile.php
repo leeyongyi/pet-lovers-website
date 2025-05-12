@@ -1,118 +1,65 @@
 <?php
 include 'config.php';
+$loggedInUsername = isset($_SESSION['username']) ? $_SESSION['username'] : null;
+// Default user information
+$user = ['username' => 'Unknown', 'introduction' => 'No introduction available.', 'image_path' => 'img/default-profile.png'];
+$userPosts = [];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Retrieve and sanitize input data
-    $title = $_POST['title'];
-    $content = $_POST['content'];
-    $tag_id = $_POST['tag_id'];
-    $author = isset($_SESSION['username']) ? $_SESSION['username'] : 'Anonymous';
-    $date_posted = date('Y-m-d H:i:s'); 
+// Fetch username from the URL query string
+if (isset($_GET['username'])) {
+    $profileUsername = $_GET['username'];
 
-    // Function to format content with paragraphs
-    function formatContentWithParagraphs($content) {
-        $paragraphs = explode("\n", $content);
-        $formattedContent = '';
-        foreach ($paragraphs as $paragraph) {
-            if (trim($paragraph) !== '') {
-                $formattedContent .= '<p>' . htmlspecialchars(trim($paragraph)) . '</p>';
+    // Prepare the SQL query to fetch user data by username
+    $sql = "SELECT * FROM user WHERE username = ?";
+    $stmt = $connection->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("s", $profileUsername);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        // Check if the user exists in the database
+        if ($result->num_rows > 0) {
+            // Fetch user details
+            $user = $result->fetch_assoc();
+            $sqlPosts = "
+                SELECT posts.*, tag.name AS tag_name
+                FROM posts
+                INNER JOIN tag ON posts.tag_id = tag.id
+                WHERE posts.author = ?
+            ";
+            $stmtPosts = $connection->prepare($sqlPosts);
+            if ($stmtPosts) {
+                $stmtPosts->bind_param("s", $profileUsername);
+                $stmtPosts->execute();
+                $postResult = $stmtPosts->get_result();
+
+                // Fetch all posts with their tags
+                while ($row = $postResult->fetch_assoc()) {
+                    $userPosts[] = $row;
+                }
+                $stmtPosts->close();
+            } else {
+                echo "<p style='color:red;'>Error fetching posts.</p>";
             }
-        }
-        return $formattedContent;
-    }
 
-    // Format the content with paragraphs
-    $formattedContent = formatContentWithParagraphs($content);
-
-    // Handling file upload
-    $uploadOk = true;
-    $image_path = '';
-
-    if ($_FILES['file']['error'] === UPLOAD_ERR_OK) {
-        $target_dir = "img/";
-        $target_file = $target_dir . basename($_FILES["file"]["name"]);
-
-        // Check if uploaded file is an image
-        $check = getimagesize($_FILES["file"]["tmp_name"]);
-        if ($check === false) {
-            echo '<script>alert("File is not an image."); window.location.href="create_post.php";</script>';
-            exit;
-        }
-
-        // Allow certain file formats
-        $allowedFormats = array("jpg", "jpeg", "png", "gif");
-        $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-        if (!in_array($imageFileType, $allowedFormats)) {
-            echo '<script>alert("Sorry, only JPG, JPEG, PNG & GIF files are allowed."); window.location.href="create_post.php";</script>';
-            exit;
-        }
-
-        // Move uploaded file
-        if (move_uploaded_file($_FILES["file"]["tmp_name"], $target_file)) {
-            $image_path = $target_file;
         } else {
-            echo '<script>alert("Sorry, there was an error uploading your file."); window.location.href="create_post.php";</script>';
+            // User not found, alert and redirect
+            echo "<script type='text/javascript'>
+                    alert('User not found');
+                    window.location.href = 'read_post.php';
+                  </script>";
             exit;
         }
-    } elseif ($_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
-        // Handle other upload errors if needed
-        echo "<script>alert('File upload error: " . $_FILES['file']['error'] . "'); window.location.href='create_post.php';</script>";
-        exit;
-    }
-
-    // Database connection
-    $conn = new mysqli('localhost:3307', 'root', '', 'petpals');
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
-    }
-
-    // Prepare and bind parameters for insertion
-    $stmt = $conn->prepare("INSERT INTO posts (title, content, image_path, tag_id, date_posted, author) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssss", $title, $formattedContent, $image_path, $tag_id, $date_posted, $author);
-
-    // Execute the statement
-    if ($stmt->execute()) {
-        echo '<script>alert("Post created successfully."); window.location.href="read_post.php";</script>';
+        $stmt->close();
     } else {
-        echo '<script>alert("Error: ' . $stmt->error . '"); window.location.href="create_post.php";</script>';
+        echo "<p style='color:red;'>Error preparing statement.</p>";
     }
-
-    // Close statement and connection
-    $stmt->close();
-    $conn->close();
+} else {
+    echo "<p style='color:red;'>Username not specified.</p>";
 }
+
+$connection->close();
 ?>
-
-
-
-<script>
-function validateForm() {
-    let title = document.forms["createPostForm"]["title"].value;
-    let content = document.forms["createPostForm"]["content"].value;
-    let tag_id = document.forms["createPostForm"]["tag_id"].value;
-    let author = document.forms["createPostForm"]["author"].value;
-
-    if (title.trim() == "") {
-        alert("Title must be filled out");
-        return false;
-    }
-    if (content.trim() == "") {
-        alert("Content must be filled out");
-        return false;
-    }
-    if (tag_id.trim() == "") {
-        alert("Tag must be selected");
-        return false;
-    }
-    if (author.trim() == "") {
-        alert("Author must be filled out");
-        return false;
-    }
-    return true; 
-}
-</script>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -132,6 +79,7 @@ function validateForm() {
 
     <!-- Style CSS -->
     <link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
@@ -144,6 +92,7 @@ function validateForm() {
 
     <!-- ##### Header Area Start ##### -->
     <header class="header-area">
+
         <!-- Top Header Area -->
         <div class="top-header">
             <div class="container h-100">
@@ -159,6 +108,7 @@ function validateForm() {
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -180,6 +130,7 @@ function validateForm() {
                 <div class="container">
                     <!-- Classy Menu -->
                     <nav class="classy-navbar justify-content-between">
+
                         <!-- Navbar Toggler -->
                         <div class="classy-navbar-toggler">
                             <span class="navbarToggler"><span></span><span></span><span></span></span>
@@ -200,7 +151,6 @@ function validateForm() {
                                     <li><a href="create_post.php">Add Post</a></li>
                                     <li><a href="calculator.php">Pet Age Calculator</a></li>
                                     <li><a href="index.html">Sign Out</a></li>
-                                </ul>
                             </div>
                             <!-- Nav End -->
                         </div>
@@ -210,21 +160,97 @@ function validateForm() {
         </div>
     </header>
     <!-- ##### Header Area End ##### -->
-    <!-- ##### Create Post Form Start ##### -->
-    <div class="create-post">
-        <h2 class="post-headline">Create Post</h2>
-        <form name="createPostForm" action="create_post.php" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
-                <input type="text" name="title" placeholder="Title" required>
-                <textarea name="content" placeholder="Content" required></textarea>
-                <input type="file" name="file" required>
-                <select name="tag_id" required>
-                        <?php include 'fetch_tags.php'; ?>
-                </select>
-                <input type="text" name="author_display" value="<?php echo htmlspecialchars($_SESSION['username']); ?>" disabled>
-                <input type="submit" value="Submit">
-        </form>
+
+    <!-- Breadcumb Area -->
+    <div class="breadcumb-area bg-img" style="background-image: url('<?php echo htmlspecialchars($user['image_path']); ?>');">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-12">
+                    <div class="breadcumb-content text-center">
+                        <h2><?php echo htmlspecialchars($user['username']); ?>'s Profile</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <!-- ##### Create Post Form End ##### -->
+
+    <!-- Profile Page Content -->
+    <div class="blog-wrapper section-padding-100-0 clearfix">
+        <div class="container">
+            <div class="row align-items-end">
+                <div class="col-12">
+                    <div class="single-blog-area clearfix mb-100">
+                        <div class="single-blog-content">
+                            <!-- Edit Profile Button -->
+                            <?php if ($loggedInUsername === $user['username']): ?>
+                                <div class="d-flex justify-content-end mb-3">
+                                    <a href="edit_profile.php?username=<?php echo urlencode($user['username']); ?>" class="btn original-btn">Edit Profile</a>
+                                </div>
+                            <?php endif; ?>
+                            <!-- Profile Info -->
+                            <h4 class="post-headline">Welcome to <?php echo htmlspecialchars($user['username']); ?>'s profile</h4>
+                            
+                            <!-- Profile Image and Introduction -->
+                            <div class="row">
+                                <?php if (!empty($user['image_path']) && $user['image_path'] !== 'img/default-profile.png'): ?>
+                                    <div class="col-md-4">
+                                        <img src="<?php echo htmlspecialchars($user['image_path']); ?>" alt="Profile Image" class="img-fluid">
+                                    </div>
+                                <?php endif; ?>
+                                <div class="col-md-8 d-flex align-items-center justify-content-center">
+                                    <p class="mb-3 text-center"><?php echo nl2br(htmlspecialchars($user['introduction'])); ?></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blog Wrapper for Posts -->
+    <div class="blog-wrapper clearfix">
+        <div class="container">
+            <div class="row">
+                <?php if (!empty($userPosts)): ?>
+                    <h4 class="mb-4">Posts by <?php echo htmlspecialchars($user['username']); ?></h4>
+                    <div class="row">
+                        <?php foreach ($userPosts as $post): ?>
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="single-blog-area blog-style-2 mb-100">
+                                    <div class="single-blog-thumbnail">
+                                        <img src="<?php echo htmlspecialchars($post['image_path']); ?>" alt="">
+                                        <div class="post-date">
+                                            <a href="#"><?php echo date('d', strtotime($post['date_posted'])); ?> <span><?php echo date('F', strtotime($post['date_posted'])); ?></span></a>
+                                        </div>
+                                    </div>
+                                    <div class="single-blog-content mt-50">
+                                        <div class="line"></div>
+                                        <a href="tag_posts.php?tag=<?php echo urlencode($post['tag_name'] ?? 'No Tag'); ?>" class="post-tag">
+                                            <?php echo htmlspecialchars($post['tag_name'] ?? 'No Tag'); ?>
+                                        </a>
+                                        <h4><a href="single_post.php?id=<?php echo $post['id']; ?>" class="post-headline"><?php echo htmlspecialchars($post['title']); ?></a></h4>
+                                        <p><?php echo strip_tags(substr($post['content'], 0, 100)); ?>...</p>
+                                        <div class="post-meta">
+                                            <p>By <a href="profile.php?username=<?php echo urlencode($post['author']); ?>"><?php echo htmlspecialchars($post['author']); ?></a></p>
+                                        </div>
+                                        <?php if ($username === $post['author']): ?>
+                                            <a href='update_post.php?id=<?php echo $post['id']; ?>'>Edit</a> |
+                                            <a href='delete_post.php?id=<?php echo $post['id']; ?>' onclick="return confirm('Are you sure?');">Delete</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <p class="text-center">No posts found for this user.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <!-- ##### Blog Wrapper End ##### -->
+     
     <!-- ##### Instagram Feed Area Start ##### -->
     <div class="instagram-feed-area">
         <div class="container">
@@ -300,9 +326,36 @@ function validateForm() {
 
     <!-- ##### Footer Area Start ##### -->
     <footer class="footer-area text-center">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+
+                    <!-- Footer Nav Area -->
+                    <div class="classy-nav-container breakpoint-off">
+                        <!-- Classy Menu -->
+                        <nav class="classy-navbar justify-content-center">
+
+                            <!-- Menu -->
+                            <div class="classy-menu">
+
+                                <!-- close btn -->
+                                <div class="classycloseIcon">
+                                    <div class="cross-wrap"><span class="top"></span><span class="bottom"></span></div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+
+                    <!-- Footer Social Area -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. -->
         Copyright &copy;<script>document.write(new Date().getFullYear());</script> All rights reserved | This template is made with <i class="fa fa-heart-o" aria-hidden="true"></i> by <a href="https://colorlib.com" target="_blank">Colorlib</a>
         <!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. -->
+
     </footer>
     <!-- ##### Footer Area End ##### -->
 
@@ -316,9 +369,7 @@ function validateForm() {
     <script src="js/plugins.js"></script>
     <!-- Active js -->
     <script src="js/active.js"></script>
-    <!-- Custom JavaScript -->
-    <script src="login.js"></script>
+
 </body>
 
 </html>
-

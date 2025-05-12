@@ -1,19 +1,19 @@
 <?php
 $host = "localhost";
-$port = 3307; // Port number
-$user = "root"; // Database username
-$pass = ""; // Database password
-$dbname = "petpals"; // Database name
+$port = 3307;
+$user = "root";
+$pass = "";
+$dbname = "petpals";
 
 // Open database connection
-$connection = new mysqli("$host", "$user", "$pass", "$dbname", "$port");
+$connection = new mysqli($host, $user, $pass, $dbname, $port);
 
-# Check if connection is successful
-if (!$connection) {
-    die("Connection failed: " . mysqli_connect_error());
+// Check if connection is successful
+if ($connection->connect_error) {
+    die("Connection failed: " . $connection->connect_error);
 }
 
-# Retrieve form data
+// Retrieve form data
 $UserName = $_POST['name'];
 $UserEmail = $_POST['email'];
 $UserPhoneNum = $_POST['phoneNum'];
@@ -21,16 +21,28 @@ $UserUsername = $_POST['username'];
 $UserPassword = $_POST['password'];
 $UserConfirmPassword = $_POST['confirmPass'];
 
-# Insert data into table
-$sql = "INSERT INTO user (name, email, phoneNum, username, password, confirmPass) 
-        VALUES ('$UserName', '$UserEmail', '$UserPhoneNum', '$UserUsername', '$UserPassword', '$UserConfirmPassword')";
-
-if (mysqli_query($connection, $sql)) {
-    echo '<script>alert("Sign up successful"); window.location.href="read_post.php";</script>';
-} else {
-    echo "Error: " . $sql . "<br>" . mysqli_error($connection);
+// Validate password match
+if ($UserPassword !== $UserConfirmPassword) {
+    echo "<script>alert('Passwords do not match.'); window.history.back();</script>";
+    exit;
 }
 
-# Close database connection
-mysqli_close($connection);
+// OPTIONAL: Hash password before storing
+$hashedPassword = password_hash($UserPassword, PASSWORD_DEFAULT);
+
+// Prepare SQL statement to prevent SQL injection
+$stmt = $connection->prepare("INSERT INTO user (name, email, phoneNum, username, password) VALUES (?, ?, ?, ?, ?)");
+$stmt->bind_param("sssss", $UserName, $UserEmail, $UserPhoneNum, $UserUsername, $hashedPassword);
+
+if ($stmt->execute()) {
+    // Success: Redirect to another page
+    echo "<script>alert('Sign up successful'); window.location.href='read_post.php';</script>";
+} else {
+    // Error message
+    echo "Error: " . $stmt->error;
+}
+
+// Close connections
+$stmt->close();
+$connection->close();
 ?>

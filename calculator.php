@@ -1,131 +1,28 @@
 <?php
-include 'config.php'; 
-
-// Function to format content with paragraphs
-function formatContentWithParagraphs($content) {
-    $paragraphs = explode("\n", $content);
-    $formattedContent = '';
-    foreach ($paragraphs as $paragraph) {
-        if (trim($paragraph) !== '') {
-            $formattedContent .= '<p>' . htmlspecialchars(trim($paragraph)) . '</p>';
-        }
-    }
-    return $formattedContent;
-}
-
-// Initialize variables
-$post = null;
-if (isset($_GET['id'])) {
-    $id = $_GET['id'];
-
-    // Database connection
-    $conn = new mysqli('localhost:3307', 'root', '', 'petpals');
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
-    }
-
-    // Fetch post data
-    $sql = "SELECT * FROM posts WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $post = $result->fetch_assoc();
-    }
-
-    $stmt->close();
-    $conn->close();
-}
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Initialize variables from POST data
-    $id = $_POST['id'];
-    $title = $_POST['title'];
-    $content = $_POST['content']; 
-    $formattedContent = formatContentWithParagraphs($content);
-    $tag_id = $_POST['tag_id'];
-    $author = isset($_SESSION['username']) ? $_SESSION['username'] : 'Anonymous';
-    $date_posted = date('Y-m-d H:i:s');
-    $current_image_path = isset($_POST['current_image_path']) ? $_POST['current_image_path'] : '';
-    $image_path = $current_image_path;
-
-    // Handling file upload
-    if ($_FILES['file']['error'] === UPLOAD_ERR_OK) {
-        $target_dir = "img/";
-        $target_file = $target_dir . basename($_FILES["file"]["name"]);
-
-        // Check if uploaded file is an image
-        $check = getimagesize($_FILES["file"]["tmp_name"]);
-        if ($check === false) {
-            echo '<script>alert("File is not an image."); window.location.href="update_post.php?id=' . $id . '";</script>';
-            exit;
-        }
-
-        // Allow certain file formats
-        $allowedFormats = array("jpg", "png", "jpeg", "gif");
-        $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-        if (!in_array($imageFileType, $allowedFormats)) {
-            echo '<script>alert("Sorry, only JPG, JPEG, PNG & GIF files are allowed."); window.location.href="update_post.php?id=' . $id . '";</script>';
-            exit;
-        }
-
-        // Move uploaded file
-        if (move_uploaded_file($_FILES["file"]["tmp_name"], $target_file)) {
-            $image_path = $target_file;
-        } else {
-            echo '<script>alert("Sorry, there was an error uploading your file."); window.location.href="update_post.php?id=' . $id . '";</script>';
-            exit;
-        }
-    } elseif ($_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
-        // Handle other upload errors if needed
-        echo "<script>alert('File upload error: " . $_FILES['file']['error'] . "'); window.location.href='update_post.php?id=' . $id . ';</script>";
-        exit;
-    }
-
-    // Database connection and update
-    $conn = new mysqli('localhost:3307', 'root', '', 'petpals');
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
-    }
-
-    // Prepare SQL statement using prepared statements to prevent SQL injection
-    $sql = "UPDATE posts SET title=?, content=?, image_path=?, tag_id=?, date_posted=?, author=? WHERE id=?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssssssi", $title, $formattedContent, $image_path, $tag_id, $date_posted, $author, $id);
-
-    // Execute the update
-    if ($stmt->execute()) {
-        if ($_FILES['file']['error'] === UPLOAD_ERR_OK && $check !== false && in_array($imageFileType, $allowedFormats)) {
-            echo '<script>alert("Post updated successfully"); window.location.href="read_post.php";</script>';
-        } else {
-            echo '<script>alert("Post updated successfully, but the uploaded file was not an image."); window.location.href="read_post.php";</script>';
-        }
-    } else {
-        echo '<script>alert("Error: ' . $stmt->error . '"); window.location.href="update_post.php?id=' . $id . '";</script>';
-    }
-
-    $stmt->close();
-    $conn->close();
-}
+include 'config.php';
 ?>
-
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="description" content="">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- The above 4 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+
     <!-- Title -->
     <title>PetPals: Connect with Pet Lovers Worldwide</title>
+
     <!-- Favicon -->
     <link rel="icon" href="img/core-img/favicon.ico">
+
     <!-- Style CSS -->
     <link rel="stylesheet" href="style.css">
+
+
 </head>
+
 <body>
     <!-- Preloader -->
     <div id="preloader">
@@ -134,8 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 
-    <!-- Header Area Start -->
+    <!-- ##### Header Area Start ##### -->
     <header class="header-area">
+
         <!-- Top Header Area -->
         <div class="top-header">
             <div class="container h-100">
@@ -172,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="container">
                     <!-- Classy Menu -->
                     <nav class="classy-navbar justify-content-between">
+
                         <!-- Navbar Toggler -->
                         <div class="classy-navbar-toggler">
                             <span class="navbarToggler"><span></span><span></span><span></span></span>
@@ -201,27 +100,52 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
     </header>
-    <!-- Header Area End -->
+    <!-- ##### Header Area End ##### -->
 
-    <!-- Update Post Form Start -->
-    <div class="create-post">
-        <h2 class="post-headline">Update Post</h2>
-        <form action="update_post.php" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="id" value="<?php echo isset($post['id']) ? $post['id'] : ''; ?>">
-                <input type="text" name="title" placeholder="Title" value="<?php echo isset($post['title']) ? htmlspecialchars($post['title']) : ''; ?>" required>
-                <textarea name="content" placeholder="Content" required><?php echo isset($post['content']) ? htmlspecialchars(str_replace('</p>', "\n", str_replace('<p>', '', $post['content']))) : ''; ?></textarea>
-                <input type="file" name="file">
-                <select name="tag_id" required>
-                        <?php include 'fetch_tags.php'; ?>
-                </select>
-                <input type="text" name="author_display" value="<?php echo htmlspecialchars($_SESSION['username']); ?>" disabled>
-                <input type="hidden" name="current_image_path" value="<?php echo isset($post['image_path']) ? htmlspecialchars($post['image_path']) : ''; ?>">
-                <input type="submit" value="Update Post">
-        </form>
+    <!-- ##### Single Post Area Start ##### -->
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <article class="single-post">
+                <h2>How old is Your Pet in Human Years</h2>
+
+                <!-- Post Image -->
+                <img src="img/blog-img/7.jpg" alt="Blog Image" class="post-image">
+                
+                <p class="post-content"><br>
+                    Did you know that understanding your pet's age in human terms can provide valuable insights into their development and care needs? Just as humans have different life stages, so do our beloved pets. By referring to your pet's age in human years, you can better understand their maturity level, health requirements, and overall well-being. For example, a one-year-old dog may be equivalent to a teenager in human years, while a seven-year-old dog might be considered a senior citizen. Knowing your pet's age in human terms allows you to tailor their care, diet, and exercise routines accordingly, ensuring they lead a healthy and fulfilling life at every stage.
+                </p>
+            </article>
+
+            <!-- Pet Age Calculator -->
+            <h2>Pet Age Calculator</h2>
+            <p class="info-text">Note: These age calculations are approximate and may vary depending on the breed and health of your pet.</p>
+
+            <input type="number" id="petAge" min="0" value="0" placeholder="Enter Age">
+            <select id="ageOption">
+                <option value="years">Years</option>
+                <option value="months">Months</option>
+            </select>
+            <select id="petType">
+                <option value="smallDog">Small Dog</option>
+                <option value="averageDog">Average Dog</option>
+                <option value="bigDog">Big Dog</option>
+                <option value="cat">Cat</option>
+                <option value="horse">Horse</option>
+                <option value="pig">Pig</option>
+                <option value="snake">Snake</option>
+                <option value="goldfish">Goldfish</option>
+                <option value="rat">Rat</option>
+                <option value="rabbit">Rabbit</option>
+                <option value="hamster">Hamster</option>
+            </select>
+            <button class="calculate-btn" onclick="calculateAge()">Calculate</button>
+            <div id="result"></div>
+        </div>
     </div>
-    <!-- Update Post Form End -->
+</div>
 
-    <!-- ##### Instagram Feed Area Start ##### -->
+<!-- ##### Instagram Feed Area Start ##### -->
     <div class="instagram-feed-area">
         <div class="container">
             <div class="row">
@@ -303,6 +227,119 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </footer>
     <!-- ##### Footer Area End ##### -->
 
+    <script>
+      function calculateAge() {
+        var petAge = parseInt(document.getElementById("petAge").value);
+        var ageOption = document.getElementById("ageOption").value;
+        var petType = document.getElementById("petType").value;
+        var humanAge = 0;
+
+        if (isNaN(petAge) || petAge < 0 || petAge > 50) {
+            document.getElementById("result").innerHTML = "Please enter a valid age (0-50 years).";
+            return;
+        }
+
+        if (!petAge || !ageOption || !petType) {
+            document.getElementById("result").innerHTML = "Please fill in all the fields.";
+            return;
+        }
+
+        if (ageOption === "months") {
+            if (petType === "hamster" || petType === "rat") {
+                // Keep age in months for small pets
+                petAge = petAge;
+            } else {
+                petAge = petAge / 12; // Convert months to years for other pets
+            }
+        }
+
+        switch (petType) {
+            case "smallDog":
+                humanAge = calculateDogAge(petAge, 4);
+                break;
+            case "averageDog":
+                humanAge = calculateDogAge(petAge, 5);
+                break;
+            case "bigDog":
+                humanAge = calculateDogAge(petAge, 6);
+                break;
+            case "cat":
+                humanAge = calculateCatAge(petAge);
+                break;
+            case "horse":
+                humanAge = calculateHorseAge(petAge);
+                break;
+            case "pig":
+                humanAge = calculatePigAge(petAge);
+                break;
+            case "snake":
+                humanAge = calculateSnakeAge(petAge);
+                break;
+            case "goldfish":
+                humanAge = calculateGoldfishAge(petAge);
+                break;
+            case "rat":
+                humanAge = calculateRatAge(petAge);
+                break;
+            case "rabbit":
+                humanAge = calculateRabbitAge(petAge);
+                break;
+            case "hamster":
+                humanAge = calculateHamsterAge(petAge);
+                break;
+            default:
+                humanAge = "Unknown";
+                break;
+        }
+
+        document.getElementById("result").innerHTML = "Your pet is approximately " + humanAge + " years (" + (petAge * 12) + " months) old in human years.";
+    }
+
+    function calculateDogAge(age, multiplier) {
+        if (age <= 2) {
+            return age * 12;
+        } else {
+            return 24 + (age - 2) * multiplier;
+        }
+    }
+
+    function calculateCatAge(age) {
+        if (age <= 2) {
+            return age * 12;
+        } else {
+            return 24 + (age - 2) * 4;
+        }
+    }
+
+    function calculateHorseAge(age) {
+        return age * 6;
+    }
+
+    function calculatePigAge(age) {
+        return age * 7;
+    }
+
+    function calculateSnakeAge(age) {
+        return age * 3; // Adjusted for snake species
+    }
+
+    function calculateGoldfishAge(age) {
+        return age * 4; // Adjusted for goldfish
+    }
+
+    function calculateRatAge(age) {
+        return age * 6;
+    }
+
+    function calculateRabbitAge(age) {
+        return age * 7;
+    }
+
+    function calculateHamsterAge(age) {
+        return age * 8;
+    }
+    </script>
+    
     <!-- jQuery (Necessary for All JavaScript Plugins) -->
     <script src="js/jquery/jquery-2.2.4.min.js"></script>
     <!-- Popper js -->
@@ -313,8 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <script src="js/plugins.js"></script>
     <!-- Active js -->
     <script src="js/active.js"></script>
-    <!-- Custom JavaScript -->
-    <script src="login.js"></script>
+
 </body>
 
 </html>

@@ -375,7 +375,6 @@ img {
         padding: 8px;
         margin-bottom: 10px;
         box-sizing: border-box;
-
     }
     #petType, #ageOption, #petAge {
         width: calc(100% - 16px);
@@ -1413,45 +1412,6 @@ textarea:focus ~ .highlight {
     transform: scale(1.7);
     opacity: 0; } }
 /* The End */
-
-/*# sourceMappingURL=style.css.map */
-.signin-form {
-max-width: 400px;
-margin: 50px auto;
-padding: 20px;
-border: 1px solid #ccc;
-border-radius: 5px;
-background-color: white;
-}
-.signin-form h2 {
-margin-bottom: 20px;        }
-.signin-form .form-group {
-margin-bottom: 15px;
-}
-.signin-form .form-group label {
-color: #878787;
-font-size: 14px;
-line-height: 1.4;
-font-family: "helveticaneuemedium";
-}
-.signin-form .form-group input {
-width: 100%;
-padding: 10px;
-border: 1px solid #ccc;
-border-radius: 5px;
-}
-.signin-form .form-group button {
-width: 100%;
-padding: 10px;
-background-color: black;
-border: none;
-color: white;
-cursor: pointer;
-}
-.signin-form .form-group button:hover {
-background-color: #30336b;
-}
-
 
 .create-post {
 max-width: 800px;

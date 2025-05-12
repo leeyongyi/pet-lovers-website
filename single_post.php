@@ -1,3 +1,6 @@
+<?php
+include 'config.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -80,9 +83,9 @@
                             <div class="classynav">
                                 <ul>
                                     <li><a href="read_post.php">Home</a></li>
-                                    <li><a href="profile.html">Profile</a></li>
+                                    <li><a href="profile.php?username=<?php echo urlencode($username); ?>">Profile</a></li>
                                     <li><a href="create_post.php">Add Post</a></li>
-                                    <li><a href="Pet-Age-Calculater.html">Pet Age Calculater</a></li>
+                                    <li><a href="calculator.php">Pet Age Calculator</a></li>
                                     <li><a href="index.html">Sign Out</a></li>
                                 </ul>
                             </div>
@@ -99,7 +102,6 @@
             <div class="row">
                 <div class="col">
                     <?php
-                    include 'config.php';
                     // Check if ID parameter is set in the URL
                         if (isset($_GET['id'])) {
                             // Database connection 
@@ -178,7 +180,7 @@
                                 </div>
                                 <div class="post-meta">
                                     <p>Date Posted: <?php echo date('M d, Y', strtotime($post['date_posted'])); ?></p>
-                                    <p>By <span class="post-author"><?php echo $post['author']; ?></span></p>
+                                    <p>By <a href="profile.php?username=<?php echo urlencode($post['author']); ?>"><?php echo htmlspecialchars($post['author']); ?></a></p>
                                 </div>
                             </article>
 
@@ -293,7 +295,7 @@
     <!-- Active js -->
     <script src="js/active.js"></script>
     <!-- Custom JavaScript -->
-    <script src="signin.js"></script>
+    <script src="login.js"></script>
 </body>
 
 </html>

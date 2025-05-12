@@ -1,131 +1,93 @@
 <?php
-include 'config.php'; 
+include 'config.php';
 
-// Function to format content with paragraphs
-function formatContentWithParagraphs($content) {
-    $paragraphs = explode("\n", $content);
-    $formattedContent = '';
-    foreach ($paragraphs as $paragraph) {
-        if (trim($paragraph) !== '') {
-            $formattedContent .= '<p>' . htmlspecialchars(trim($paragraph)) . '</p>';
-        }
-    }
-    return $formattedContent;
-}
+$user = '';
+$intro = '';
+$breadcrumbImage = 'img/bg-img/b1.jpg'; // Default background image
 
-// Initialize variables
-$post = null;
-if (isset($_GET['id'])) {
-    $id = $_GET['id'];
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['username'], $_POST['introduction'])) {
+    $user = trim($_POST['username']);
+    $intro = trim($_POST['introduction']);
+    $imagePath = null;
 
-    // Database connection
-    $conn = new mysqli('localhost:3307', 'root', '', 'petpals');
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
-    }
-
-    // Fetch post data
-    $sql = "SELECT * FROM posts WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $post = $result->fetch_assoc();
-    }
-
-    $stmt->close();
-    $conn->close();
-}
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Initialize variables from POST data
-    $id = $_POST['id'];
-    $title = $_POST['title'];
-    $content = $_POST['content']; 
-    $formattedContent = formatContentWithParagraphs($content);
-    $tag_id = $_POST['tag_id'];
-    $author = isset($_SESSION['username']) ? $_SESSION['username'] : 'Anonymous';
-    $date_posted = date('Y-m-d H:i:s');
-    $current_image_path = isset($_POST['current_image_path']) ? $_POST['current_image_path'] : '';
-    $image_path = $current_image_path;
-
-    // Handling file upload
-    if ($_FILES['file']['error'] === UPLOAD_ERR_OK) {
-        $target_dir = "img/";
-        $target_file = $target_dir . basename($_FILES["file"]["name"]);
-
-        // Check if uploaded file is an image
-        $check = getimagesize($_FILES["file"]["tmp_name"]);
-        if ($check === false) {
-            echo '<script>alert("File is not an image."); window.location.href="update_post.php?id=' . $id . '";</script>';
-            exit;
-        }
-
-        // Allow certain file formats
-        $allowedFormats = array("jpg", "png", "jpeg", "gif");
-        $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-        if (!in_array($imageFileType, $allowedFormats)) {
-            echo '<script>alert("Sorry, only JPG, JPEG, PNG & GIF files are allowed."); window.location.href="update_post.php?id=' . $id . '";</script>';
-            exit;
-        }
-
-        // Move uploaded file
-        if (move_uploaded_file($_FILES["file"]["tmp_name"], $target_file)) {
-            $image_path = $target_file;
-        } else {
-            echo '<script>alert("Sorry, there was an error uploading your file."); window.location.href="update_post.php?id=' . $id . '";</script>';
-            exit;
-        }
-    } elseif ($_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
-        // Handle other upload errors if needed
-        echo "<script>alert('File upload error: " . $_FILES['file']['error'] . "'); window.location.href='update_post.php?id=' . $id . ';</script>";
+    if (empty($user) || empty($intro)) {
+        echo "Both fields are required!";
         exit;
     }
 
-    // Database connection and update
-    $conn = new mysqli('localhost:3307', 'root', '', 'petpals');
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+    // Handle image upload
+    if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'img/profile-img/';
+        $fileName = basename($_FILES['profile_image']['name']);
+        $targetPath = $uploadDir . uniqid() . '_' . $fileName;
+
+        if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $targetPath)) {
+            $imagePath = $targetPath;
+        } else {
+            echo "Image upload failed.";
+            exit;
+        }
     }
 
-    // Prepare SQL statement using prepared statements to prevent SQL injection
-    $sql = "UPDATE posts SET title=?, content=?, image_path=?, tag_id=?, date_posted=?, author=? WHERE id=?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssssssi", $title, $formattedContent, $image_path, $tag_id, $date_posted, $author, $id);
-
-    // Execute the update
-    if ($stmt->execute()) {
-        if ($_FILES['file']['error'] === UPLOAD_ERR_OK && $check !== false && in_array($imageFileType, $allowedFormats)) {
-            echo '<script>alert("Post updated successfully"); window.location.href="read_post.php";</script>';
-        } else {
-            echo '<script>alert("Post updated successfully, but the uploaded file was not an image."); window.location.href="read_post.php";</script>';
-        }
+    if ($imagePath) {
+        $sql = "INSERT INTO user (username, introduction, image_path)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE introduction = VALUES(introduction), image_path = VALUES(image_path)";
+        $stmt = $connection->prepare($sql);
+        $stmt->bind_param("sss", $user, $intro, $imagePath);
     } else {
-        echo '<script>alert("Error: ' . $stmt->error . '"); window.location.href="update_post.php?id=' . $id . '";</script>';
+        $sql = "INSERT INTO user (username, introduction)
+                VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE introduction = VALUES(introduction)";
+        $stmt = $connection->prepare($sql);
+        $stmt->bind_param("ss", $user, $intro);
+    }
+
+    if ($stmt->execute()) {
+        header("Location: profile.php?username=" . urlencode($user));
+        exit;
+    } else {
+        echo "Error: " . $stmt->error;
     }
 
     $stmt->close();
-    $conn->close();
+} elseif (isset($_GET['username'])) {
+    $user = $_GET['username'];
+    $stmt = $connection->prepare("SELECT introduction, image_path FROM user WHERE username = ?");
+    $stmt->bind_param("s", $user);
+    $stmt->execute();
+    $stmt->bind_result($intro, $imagePath);
+    if ($stmt->fetch()) {
+        if (!empty($imagePath)) {
+            $breadcrumbImage = $imagePath;
+        }
+    }
+    $stmt->close();
 }
-?>
 
+$connection->close();
+?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="description" content="">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- The above 4 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+
     <!-- Title -->
     <title>PetPals: Connect with Pet Lovers Worldwide</title>
+
     <!-- Favicon -->
     <link rel="icon" href="img/core-img/favicon.ico">
+
     <!-- Style CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Preloader -->
     <div id="preloader">
@@ -134,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 
-    <!-- Header Area Start -->
+    <!-- ##### Header Area Start ##### -->
     <header class="header-area">
         <!-- Top Header Area -->
         <div class="top-header">
@@ -201,26 +163,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
     </header>
-    <!-- Header Area End -->
-
-    <!-- Update Post Form Start -->
-    <div class="create-post">
-        <h2 class="post-headline">Update Post</h2>
-        <form action="update_post.php" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="id" value="<?php echo isset($post['id']) ? $post['id'] : ''; ?>">
-                <input type="text" name="title" placeholder="Title" value="<?php echo isset($post['title']) ? htmlspecialchars($post['title']) : ''; ?>" required>
-                <textarea name="content" placeholder="Content" required><?php echo isset($post['content']) ? htmlspecialchars(str_replace('</p>', "\n", str_replace('<p>', '', $post['content']))) : ''; ?></textarea>
-                <input type="file" name="file">
-                <select name="tag_id" required>
-                        <?php include 'fetch_tags.php'; ?>
-                </select>
-                <input type="text" name="author_display" value="<?php echo htmlspecialchars($_SESSION['username']); ?>" disabled>
-                <input type="hidden" name="current_image_path" value="<?php echo isset($post['image_path']) ? htmlspecialchars($post['image_path']) : ''; ?>">
-                <input type="submit" value="Update Post">
-        </form>
+    <!-- ##### Header Area End ##### -->
+    <!-- ##### Profile Introduction Form Start ##### -->
+    <div class="profile-introduction-area section-padding-100-0">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <h3>Add Your Profile Introduction</h3>
+                    <form action="" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="username">Username:</label>
+                            <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($user); ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="introduction">Introduction:</label>
+                            <textarea class="form-control" id="introduction" name="introduction" rows="5" required><?php echo htmlspecialchars($intro); ?></textarea>
+                        </div>
+                        <div class="form-group">
+                        <label for="profile_image">Upload Header Image:</label>
+                            <input type="file" class="form-control" name="profile_image" id="profile_image" accept="image/*">
+                        </div>
+                        <button type="submit" class="btn calculate-btn">Save Introduction</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-    <!-- Update Post Form End -->
-
+    <!-- ##### Profile Introduction Form End ##### -->
     <!-- ##### Instagram Feed Area Start ##### -->
     <div class="instagram-feed-area">
         <div class="container">
